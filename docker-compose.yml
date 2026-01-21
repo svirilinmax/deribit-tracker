@@ -1,0 +1,110 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: deribit-tracker-postgres
+    env_file: .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - deribit-network
+    healthcheck:
+      test: ["CMD-SHELL", "psql -U ${POSTGRES_USER} -d ${POSTGRES_DB} -c 'SELECT 1;'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: deribit-tracker-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - deribit-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: deribit-tracker-api
+    env_file: .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+      - ./logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - deribit-network
+    command: >
+      sh -c "alembic upgrade head &&
+             uvicorn app.core.main:app --host 0.0.0.0 --port 8000 --reload"
+
+  celery_worker:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: deribit-tracker-celery-worker
+    env_file: .env
+    volumes:
+      - .:/app
+      - ./logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - deribit-network
+    command: celery -A app.workers.celery_app worker --loglevel=info -Q celery,prices,monitoring
+
+  celery_beat:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: deribit-tracker-celery-beat
+    env_file: .env
+    volumes:
+      - .:/app
+      - ./logs:/app/logs
+    depends_on:
+      celery_worker:
+        condition: service_started
+    networks:
+      - deribit-network
+    command: celery -A app.workers.celery_app beat --loglevel=info
+
+  flower:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: deribit-tracker-flower
+    env_file: .env
+    ports:
+      - "5555:5555"
+    depends_on:
+      - redis
+    networks:
+      - deribit-network
+    command: celery -A app.workers.celery_app flower --port=5555
+
+volumes:
+  postgres_data:
+
+networks:
+  deribit-network:
+    driver: bridge
