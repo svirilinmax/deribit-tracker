@@ -1,4 +1,3 @@
-markdown
 # Deribit Price Tracker
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python)](https://www.python.org/)
