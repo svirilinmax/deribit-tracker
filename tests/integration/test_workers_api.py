@@ -1,4 +1,4 @@
-from unittest.mock import patch, Mock, MagicMock
+from unittest.mock import MagicMock, Mock, patch
 
 
 class TestWorkersAPI:
@@ -7,7 +7,7 @@ class TestWorkersAPI:
     def test_trigger_fetch_prices(self, workers_test_client):
         """Тест запуска задачи получения цен"""
 
-        with patch('app.api.v1.endpoints.workers.celery_app') as mock_celery:
+        with patch("app.api.v1.endpoints.workers.celery_app") as mock_celery:
             mock_task = Mock()
             mock_task.id = "test-task-id-123"
 
@@ -25,7 +25,7 @@ class TestWorkersAPI:
     def test_get_task_status(self, workers_test_client):
         """Тест получения статуса задачи"""
 
-        with patch('app.api.v1.endpoints.workers.celery_app') as mock_celery:
+        with patch("app.api.v1.endpoints.workers.celery_app") as mock_celery:
             mock_task = Mock()
             mock_task.status = "SUCCESS"
             mock_task.ready = Mock(return_value=True)
@@ -44,7 +44,7 @@ class TestWorkersAPI:
     def test_check_celery_health(self, workers_test_client):
         """Тест проверки здоровья Celery"""
 
-        with patch('app.api.v1.endpoints.workers.celery_app') as mock_celery:
+        with patch("app.api.v1.endpoints.workers.celery_app") as mock_celery:
             mock_task = Mock()
             mock_task.id = "test-task-id-123"
             mock_task.status = "SUCCESS"
@@ -64,15 +64,18 @@ class TestWorkersAPI:
     def test_get_queue_info(self, workers_test_client):
         """Тест получения информации об очередях"""
 
-        with patch('redis.Redis') as mock_redis_class, \
-            patch('app.api.v1.endpoints.workers.celery_app') as mock_celery:
+        with patch("redis.Redis") as mock_redis_class, patch(
+            "app.api.v1.endpoints.workers.celery_app"
+        ) as mock_celery:
             mock_redis_instance = MagicMock()
             mock_redis_instance.ping.return_value = True
             mock_redis_class.from_url.return_value = mock_redis_instance
 
             mock_inspector = MagicMock()
             mock_inspector.active.return_value = {"worker1@hostname": []}
-            mock_inspector.registered.return_value = {"worker1@hostname": ["fetch_prices_task"]}
+            mock_inspector.registered.return_value = {
+                "worker1@hostname": ["fetch_prices_task"]
+            }
 
             mock_celery.control.inspect.return_value = mock_inspector
             mock_celery.conf.broker_url = "redis://localhost:6379/0"
@@ -89,7 +92,7 @@ class TestWorkersAPI:
     def test_get_task_status_not_found(self, workers_test_client):
         """Тест получения статуса несуществующей задачи"""
 
-        with patch('app.api.v1.endpoints.workers.celery_app') as mock_celery:
+        with patch("app.api.v1.endpoints.workers.celery_app") as mock_celery:
             mock_task = Mock()
             mock_task.status = "PENDING"
             mock_task.ready = Mock(return_value=False)

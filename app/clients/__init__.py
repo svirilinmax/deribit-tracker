@@ -1,10 +1,10 @@
 from .deribit import DeribitClient, get_deribit_client
 from .exceptions import (
-    DeribitClientError,
     DeribitAPIError,
+    DeribitClientError,
     DeribitConnectionError,
     DeribitRateLimitError,
-    DeribitValidationError
+    DeribitValidationError,
 )
 
 __all__ = [

@@ -1,10 +1,8 @@
 import logging
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 
-from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends
+from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel
-
-from app.db.session import get_db
 
 from app.workers.celery_app import celery_app
 
@@ -15,6 +13,7 @@ router = APIRouter()
 
 class TaskStatusResponse(BaseModel):
     """Ответ со статусом задачи"""
+
     task_id: str
     status: str
     ready: bool
@@ -24,6 +23,7 @@ class TaskStatusResponse(BaseModel):
 
 class TriggerTaskResponse(BaseModel):
     """Ответ на запуск задачи"""
+
     task_id: str
     status: str
     check_status: str
@@ -31,6 +31,7 @@ class TriggerTaskResponse(BaseModel):
 
 class HealthCheckResponse(BaseModel):
     """Ответ проверки здоровья"""
+
     task_id: str
     status: str
     result: Optional[Dict[str, Any]] = None
@@ -38,6 +39,7 @@ class HealthCheckResponse(BaseModel):
 
 class QueueInfoResponse(BaseModel):
     """Информация об очередях"""
+
     queues: Dict[str, Dict[str, Any]]
     workers: Dict[str, Any]
     redis: Dict[str, Any]
@@ -55,11 +57,13 @@ async def trigger_fetch_prices(background_tasks: BackgroundTasks):
         return TriggerTaskResponse(
             task_id=task.id,
             status="PENDING",
-            check_status=f"/v1/workers/tasks/{task.id}"
+            check_status=f"/v1/workers/tasks/{task.id}",
         )
     except Exception as e:
         logger.error(f"Ошибка при запуске задачи: {e}")
-        raise HTTPException(status_code=500, detail=f"Ошибка при запуске задачи: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Ошибка при запуске задачи: {str(e)}"
+        )
 
 
 @router.get("/tasks/{task_id}", response_model=TaskStatusResponse)
@@ -77,18 +81,12 @@ async def get_task_status(task_id: str):
                 result = {"error": str(e)}
 
         return TaskStatusResponse(
-            task_id=task_id,
-            status=task.status,
-            ready=task.ready(),
-            result=result
+            task_id=task_id, status=task.status, ready=task.ready(), result=result
         )
     except Exception as e:
         logger.error(f"Ошибка при получении статуса задачи task_id = {task_id}: {e}")
         return TaskStatusResponse(
-            task_id=task_id,
-            status="PENDING",
-            ready=False,
-            error=str(e)
+            task_id=task_id, status="PENDING", ready=False, error=str(e)
         )
 
 
@@ -103,14 +101,12 @@ async def check_celery_health():
 
         result = task.get(timeout=10)
 
-        return HealthCheckResponse(
-            task_id=task.id,
-            status=task.status,
-            result=result
-        )
+        return HealthCheckResponse(task_id=task.id, status=task.status, result=result)
     except Exception as e:
         logger.error(f"Ошибка при проверке здоровья Celery: {e}")
-        raise HTTPException(status_code=500, detail=f"Ошибка при проверке здоровья: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Ошибка при проверке здоровья: {str(e)}"
+        )
 
 
 @router.get("/queues", response_model=QueueInfoResponse)
@@ -120,6 +116,7 @@ async def get_queue_info():
     try:
         try:
             from redis import Redis
+
             redis_client = Redis.from_url(celery_app.conf.broker_url)
             redis_connected = redis_client.ping()
         except ImportError:
@@ -139,7 +136,7 @@ async def get_queue_info():
         queues_info = {
             "celery": {"length": 0},
             "prices": {"length": 2},
-            "monitoring": {"length": 1}
+            "monitoring": {"length": 1},
         }
 
         return QueueInfoResponse(
@@ -147,13 +144,15 @@ async def get_queue_info():
             workers={
                 "count": len(active_workers),
                 "active": list(active_workers.keys()),
-                "registered": registered_tasks
+                "registered": registered_tasks,
             },
             redis={
                 "connected": redis_connected,
-                "broker_url": celery_app.conf.broker_url
-            }
+                "broker_url": celery_app.conf.broker_url,
+            },
         )
     except Exception as e:
         logger.error(f"Ошибка при получении информации об очередях: {e}")
-        raise HTTPException(status_code=500, detail=f"Ошибка при получении информации: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Ошибка при получении информации: {str(e)}"
+        )

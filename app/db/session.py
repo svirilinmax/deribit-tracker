@@ -1,5 +1,6 @@
 from contextlib import contextmanager
 from typing import Generator
+
 from sqlalchemy.orm import Session
 
 from app.db.database import SessionLocal
@@ -32,4 +33,3 @@ def get_db_context():
         raise
     finally:
         db.close()
-

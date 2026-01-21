@@ -1,15 +1,18 @@
 import asyncio
 
 import pytest
-from httpx import AsyncClient, ASGITransport
-from app.core.main import app
+from httpx import ASGITransport, AsyncClient
+
 from app.api.v1.deps import get_db
+from app.core.main import app
 
 
 class TestPricesEdgeCases:
     """Тесты для граничных случаев API цен"""
 
-    def test_get_prices_with_large_skip(self, test_client, db_session, sample_price_data):
+    def test_get_prices_with_large_skip(
+        self, test_client, db_session, sample_price_data
+    ):
         """Тест получения цен с большим skip"""
 
         from app.db.models import Price
@@ -47,7 +50,9 @@ class TestPricesEdgeCases:
 
         assert response.status_code == 422
 
-    def test_filter_prices_with_only_start(self, test_client, db_session, sample_price_data):
+    def test_filter_prices_with_only_start(
+        self, test_client, db_session, sample_price_data
+    ):
         """Тест фильтрации только с начальной датой"""
 
         from app.db.models import Price
@@ -60,13 +65,17 @@ class TestPricesEdgeCases:
             db_session.add(price)
         db_session.commit()
 
-        response = test_client.get(f"/v1/prices/filter?ticker=btc_usd&start={timestamps[1]}")
+        response = test_client.get(
+            f"/v1/prices/filter?ticker=btc_usd&start={timestamps[1]}"
+        )
 
         assert response.status_code == 200
         data = response.json()
         assert len(data) == 2
 
-    def test_filter_prices_with_only_end(self, test_client, db_session, sample_price_data):
+    def test_filter_prices_with_only_end(
+        self, test_client, db_session, sample_price_data
+    ):
         """Тест фильтрации только с конечной датой"""
 
         from app.db.models import Price
@@ -80,7 +89,9 @@ class TestPricesEdgeCases:
             db_session.add(price)
         db_session.commit()
 
-        response = test_client.get(f"/v1/prices/filter?ticker=btc_usd&end={timestamps[1]}")
+        response = test_client.get(
+            f"/v1/prices/filter?ticker=btc_usd&end={timestamps[1]}"
+        )
 
         assert response.status_code == 200
         data = response.json()
@@ -89,13 +100,11 @@ class TestPricesEdgeCases:
     def test_create_price_duplicate_timestamp(self, test_client, db_session):
         """Тест создания записи с дублирующимся timestamp"""
 
-        from app.db.models import Price
-
         price_data = {
             "ticker": "btc_usd",
             "price": 50000.50,
             "timestamp": 1705593600000,
-            "source_timestamp": 1705593600000000
+            "source_timestamp": 1705593600000000,
         }
 
         response1 = test_client.post("/v1/prices/", json=price_data)
@@ -168,9 +177,9 @@ class TestPricesEdgeCases:
                     "ticker": "btc_usd",
                     "price": 0.00000001,
                     "timestamp": 1705593600000,
-                    "source_timestamp": 1705593600000000
+                    "source_timestamp": 1705593600000000,
                 },
-                "should_pass": True
+                "should_pass": True,
             },
             {
                 "name": "very_large_price",
@@ -178,9 +187,9 @@ class TestPricesEdgeCases:
                     "ticker": "btc_usd",
                     "price": 99999999.99999999,
                     "timestamp": 1705593600000,
-                    "source_timestamp": 1705593600000000
+                    "source_timestamp": 1705593600000000,
                 },
-                "should_pass": True
+                "should_pass": True,
             },
             {
                 "name": "price_with_many_decimals",
@@ -188,20 +197,24 @@ class TestPricesEdgeCases:
                     "ticker": "btc_usd",
                     "price": 50000.12345678,
                     "timestamp": 1705593600000,
-                    "source_timestamp": 1705593600000000
+                    "source_timestamp": 1705593600000000,
                 },
-                "should_pass": True
-            }
+                "should_pass": True,
+            },
         ]
 
         for test_case in test_cases:
             response = test_client.post("/v1/prices/", json=test_case["data"])
 
             if test_case["should_pass"]:
-                assert response.status_code in [200, 201], f"Failed for {test_case['name']}: {response.text}"
+                assert response.status_code in [
+                    200,
+                    201,
+                ], f"Failed for {test_case['name']}: {response.text}"
             else:
-                assert response.status_code >= 400, f"Should have failed for {test_case['name']}"
-
+                assert (
+                    response.status_code >= 400
+                ), f"Should have failed for {test_case['name']}"
 
     @pytest.mark.asyncio
     async def test_concurrent_requests(self, db_session, sample_price_data):
@@ -218,7 +231,9 @@ class TestPricesEdgeCases:
         app.dependency_overrides[get_db] = override_get_db
 
         try:
-            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as ac:
 
                 async def make_request(request_num):
                     data = sample_price_data.copy()
@@ -236,14 +251,13 @@ class TestPricesEdgeCases:
         finally:
             app.dependency_overrides.clear()
 
-
     def test_malformed_json(self, test_client):
         """Тест с некорректным JSON"""
 
         response = test_client.post(
             "/v1/prices/",
             data='{"ticker": "btc_usd", "price": 50000.50, "timestamp": 1705593600000,',
-            headers={"Content-Type": "application/json"}
+            headers={"Content-Type": "application/json"},
         )
 
         assert response.status_code == 422
@@ -254,7 +268,7 @@ class TestPricesEdgeCases:
         response = test_client.post(
             "/v1/prices/",
             data='{"ticker": "btc_usd", "price": 50000.50, "timestamp": 1705593600000}',
-            headers={"Content-Type": "text/plain"}
+            headers={"Content-Type": "text/plain"},
         )
 
         assert response.status_code == 415 or response.status_code == 422

@@ -1,14 +1,14 @@
-import pytest
 import asyncio
-from typing import Generator, Dict, Any
+import tracemalloc
+from typing import Any, Dict, Generator
 from unittest.mock import AsyncMock, patch
 
-from sqlalchemy import create_engine, event
-from sqlalchemy.orm import sessionmaker, Session
-from sqlalchemy.pool import StaticPool
+import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import create_engine, event
+from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import StaticPool
 
-import tracemalloc
 
 def pytest_configure(config):
     tracemalloc.start()
@@ -16,9 +16,7 @@ def pytest_configure(config):
 
 TEST_DATABASE_URL = "sqlite:///:memory:"
 engine = create_engine(
-    TEST_DATABASE_URL,
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool
+    TEST_DATABASE_URL, connect_args={"check_same_thread": False}, poolclass=StaticPool
 )
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
@@ -36,7 +34,7 @@ def event_loop():
 def setup_database():
     """Создание тестовой базы данных один раз для всех тестов"""
 
-    with patch('app.core.config.settings') as mock_settings:
+    with patch("app.core.config.settings") as mock_settings:
         mock_settings.database_url = TEST_DATABASE_URL
         mock_settings.DATABASE_URL = TEST_DATABASE_URL
         mock_settings.DEBUG = False
@@ -51,10 +49,10 @@ def setup_database():
         mock_settings.LOG_FILE = None
 
         from app.db.database import Base
+
         Base.metadata.create_all(bind=engine)
 
         yield
-
 
 
 @pytest.fixture
@@ -85,11 +83,11 @@ def db_session() -> Generator[Session, None, None]:
 def test_client(db_session: Session) -> Generator[TestClient, None, None]:
     """TestClient для тестирования FastAPI"""
 
-    with patch('app.core.config.settings') as mock_settings, \
-            patch('app.db.database.SessionLocal', TestingSessionLocal), \
-            patch('app.db.session.SessionLocal', TestingSessionLocal), \
-            patch('app.db.database.engine', engine):
-
+    with patch("app.core.config.settings") as mock_settings, patch(
+        "app.db.database.SessionLocal", TestingSessionLocal
+    ), patch("app.db.session.SessionLocal", TestingSessionLocal), patch(
+        "app.db.database.engine", engine
+    ):
         mock_settings.database_url = TEST_DATABASE_URL
         mock_settings.DATABASE_URL = TEST_DATABASE_URL
         mock_settings.DEBUG = False
@@ -104,6 +102,7 @@ def test_client(db_session: Session) -> Generator[TestClient, None, None]:
         mock_settings.LOG_FILE = None
 
         from app.core.main import create_application
+
         app = create_application()
 
         from app.api.v1.deps import get_db as original_get_db
@@ -114,7 +113,7 @@ def test_client(db_session: Session) -> Generator[TestClient, None, None]:
             finally:
                 try:
                     db_session.commit()
-                except:
+                except Exception:
                     db_session.rollback()
                     raise
 
@@ -134,7 +133,7 @@ def sample_price_data() -> Dict[str, Any]:
         "ticker": "btc_usd",
         "price": 50000.50,
         "timestamp": 1705593600000,
-        "source_timestamp": 1705593600000000
+        "source_timestamp": 1705593600000000,
     }
 
 
@@ -142,14 +141,16 @@ def sample_price_data() -> Dict[str, Any]:
 def mock_aiohttp_client():
     """Mock для aiohttp.ClientSession"""
 
-    with patch('aiohttp.ClientSession') as mock_session:
+    with patch("aiohttp.ClientSession") as mock_session:
         mock_response = AsyncMock()
         mock_response.status = 200
-        mock_response.json = AsyncMock(return_value={
-            "jsonrpc": "2.0",
-            "id": 1,
-            "result": {"index_price": 50000.50}
-        })
+        mock_response.json = AsyncMock(
+            return_value={
+                "jsonrpc": "2.0",
+                "id": 1,
+                "result": {"index_price": 50000.50},
+            }
+        )
 
         mock_session_instance = AsyncMock()
         mock_session_instance.post = AsyncMock(return_value=mock_response)
@@ -163,12 +164,11 @@ def mock_aiohttp_client():
 def workers_test_client():
     """Отдельный клиент для workers тестов"""
 
-
-    with patch('app.core.config.settings') as mock_settings, \
-            patch('app.db.database.SessionLocal', TestingSessionLocal), \
-            patch('app.db.session.SessionLocal', TestingSessionLocal), \
-            patch('app.db.database.engine', engine):
-
+    with patch("app.core.config.settings") as mock_settings, patch(
+        "app.db.database.SessionLocal", TestingSessionLocal
+    ), patch("app.db.session.SessionLocal", TestingSessionLocal), patch(
+        "app.db.database.engine", engine
+    ):
         mock_settings.database_url = TEST_DATABASE_URL
         mock_settings.DATABASE_URL = TEST_DATABASE_URL
         mock_settings.DEBUG = False
@@ -183,6 +183,7 @@ def workers_test_client():
         mock_settings.LOG_FILE = None
 
         from app.core.main import create_application
+
         app = create_application()
 
         with TestClient(app) as client:

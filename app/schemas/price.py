@@ -1,31 +1,37 @@
 import re
-from pydantic import BaseModel, Field, field_validator, ConfigDict
 from datetime import datetime, timezone
 from typing import Optional
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class PriceBase(BaseModel):
     """Базовая схема для цены"""
 
-    ticker: str = Field(..., description="Тикер (например, BTC-PERPETUAL)", min_length=3)
+    ticker: str = Field(
+        ..., description="Тикер (например, BTC-PERPETUAL)", min_length=3
+    )
     price: float = Field(..., description="Цена", ge=0)
     timestamp: int = Field(..., description="UNIX timestamp в миллисекундах", ge=0)
     source_timestamp: Optional[int] = Field(None, description="Timestamp от Deribit")
 
-
-    @field_validator('ticker')
+    @field_validator("ticker")
     @classmethod
     def validate_ticker(cls, v: str) -> str:
         v = v.lower()
-        pattern = r'^(btc|eth)[-_][a-z0-9]{2,15}$'
+        pattern = r"^(btc|eth)[-_][a-z0-9]{2,15}$"
 
         if not re.match(pattern, v):
-            raise ValueError("Тикер должен начинаться с btc/eth и иметь формат btc_usd или btc-perpetual")
+            raise ValueError(
+                "Тикер должен начинаться с btc/eth и "
+                "иметь формат btc_usd или btc-perpetual"
+            )
         return v
 
 
 class PriceCreate(PriceBase):
     """Схема для создания записи о цене"""
+
     pass
 
 
@@ -55,4 +61,3 @@ class PriceResponse(PriceInDB):
     """Схема ответа API"""
 
     pass
-

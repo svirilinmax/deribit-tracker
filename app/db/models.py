@@ -1,5 +1,6 @@
-from sqlalchemy import Column, Integer, String, Numeric, BigInteger, DateTime, Index
+from sqlalchemy import BigInteger, Column, DateTime, Index, Integer, Numeric, String
 from sqlalchemy.sql import func
+
 from .database import Base
 
 
@@ -17,12 +18,15 @@ class Price(Base):
 
     # Индекс для быстрого поиска по тикеру и времени
     __table_args__ = (
-        Index('idx_ticker_timestamp', ticker, timestamp.desc()),
-        Index('idx_created_at', created_at.desc()),
+        Index("idx_ticker_timestamp", ticker, timestamp.desc()),
+        Index("idx_created_at", created_at.desc()),
     )
 
     def __repr__(self):
-        return f"<Price(ticker={self.ticker}, price={self.price}, timestamp={self.timestamp})>"
+        return (
+            f"<Price(ticker={self.ticker}, "
+            f"price={self.price}, timestamp={self.timestamp})>"
+        )
 
     def to_dict(self):
         """Конвертировать модель в словарь"""
@@ -33,5 +37,5 @@ class Price(Base):
             "price": float(self.price),
             "timestamp": self.timestamp,
             "source_timestamp": self.source_timestamp,
-            "created_at": self.created_at.isoformat() if self.created_at else None
+            "created_at": self.created_at.isoformat() if self.created_at else None,
         }

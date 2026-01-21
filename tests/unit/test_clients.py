@@ -1,6 +1,7 @@
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import aiohttp
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
 from aiohttp import ClientError
 
 from app.clients.deribit import DeribitClient
@@ -14,21 +15,21 @@ class TestDeribitClientFixed:
         """Тест инициализации клиента"""
 
         client = DeribitClient()
-        assert hasattr(client, 'base_url')
-        assert hasattr(client, 'timeout')
+        assert hasattr(client, "base_url")
+        assert hasattr(client, "timeout")
         assert client.timeout == 30
 
     @pytest.mark.asyncio
     async def test_client_context_manager(self):
         """Тест контекстного менеджера"""
 
-        with patch('aiohttp.ClientSession') as mock_session_class:
+        with patch("aiohttp.ClientSession") as mock_session_class:
             mock_session = AsyncMock()
             mock_session.close = AsyncMock()
             mock_session_class.return_value.__aenter__.return_value = mock_session
 
             async with DeribitClient() as client:
-                assert hasattr(client, 'base_url')
+                assert hasattr(client, "base_url")
 
     @pytest.mark.asyncio
     async def test_get_index_price_success(self):
@@ -39,7 +40,7 @@ class TestDeribitClientFixed:
         mock_response.json.return_value = {
             "jsonrpc": "2.0",
             "id": 1,
-            "result": {"index_price": 50000.50}
+            "result": {"index_price": 50000.50},
         }
 
         mock_post_context = AsyncMock()
@@ -49,7 +50,7 @@ class TestDeribitClientFixed:
         mock_session.post.return_value = mock_post_context
         mock_session.close = AsyncMock()
 
-        with patch.object(client, '_create_session', return_value=mock_session):
+        with patch.object(client, "_create_session", return_value=mock_session):
             async with client:
                 result = await client.get_index_price("btc_usd")
 
@@ -64,11 +65,13 @@ class TestDeribitClientFixed:
 
         mock_response = AsyncMock()
         mock_response.status = 200
-        mock_response.json = AsyncMock(return_value={
-            "jsonrpc": "2.0",
-            "id": 1,
-            "error": {"message": "Invalid request", "code": -32600}
-        })
+        mock_response.json = AsyncMock(
+            return_value={
+                "jsonrpc": "2.0",
+                "id": 1,
+                "error": {"message": "Invalid request", "code": -32600},
+            }
+        )
 
         mock_post_context = AsyncMock()
         mock_post_context.__aenter__.return_value = mock_response
@@ -77,7 +80,7 @@ class TestDeribitClientFixed:
         mock_session.post.return_value = mock_post_context
         mock_session.close = AsyncMock()
 
-        with patch.object(client, '_create_session', return_value=mock_session):
+        with patch.object(client, "_create_session", return_value=mock_session):
             async with client:
                 with pytest.raises(DeribitAPIError) as exc_info:
                     await client.get_index_price("btc_usd")
@@ -104,7 +107,7 @@ class TestDeribitClientFixed:
         mock_session.post.return_value = mock_post_context
         mock_session.close = AsyncMock()
 
-        with patch.object(client, '_create_session', return_value=mock_session):
+        with patch.object(client, "_create_session", return_value=mock_session):
             async with client:
                 with pytest.raises(DeribitAPIError) as exc_info:
                     await client.get_index_price("btc_usd")
@@ -123,7 +126,7 @@ class TestDeribitClientFixed:
 
         client = DeribitClient()
 
-        with patch.object(client, '_create_session') as mock_create:
+        with patch.object(client, "_create_session") as mock_create:
             mock_create.return_value.__aenter__.return_value = mock_session
             with pytest.raises(DeribitConnectionError):
                 await client.get_index_price("btc_usd")
@@ -132,11 +135,8 @@ class TestDeribitClientFixed:
     async def test_get_multiple_index_prices(self):
         """Тест получения нескольких цен"""
 
-        with patch.object(DeribitClient, 'get_index_price') as mock_get:
-            mock_get.side_effect = [
-                {"index_price": 50000.50},
-                {"index_price": 3500.75}
-            ]
+        with patch.object(DeribitClient, "get_index_price") as mock_get:
+            mock_get.side_effect = [{"index_price": 50000.50}, {"index_price": 3500.75}]
 
             client = DeribitClient()
             results = await client.get_multiple_index_prices(["btc_usd", "eth_usd"])
@@ -150,10 +150,10 @@ class TestDeribitClientFixed:
     async def test_get_multiple_index_prices_with_error(self):
         """Тест получения нескольких цен с ошибкой"""
 
-        with patch.object(DeribitClient, 'get_index_price') as mock_get:
+        with patch.object(DeribitClient, "get_index_price") as mock_get:
             mock_get.side_effect = [
                 {"index_price": 50000.50},
-                DeribitAPIError("API Error", code=-1)
+                DeribitAPIError("API Error", code=-1),
             ]
 
             client = DeribitClient()
@@ -174,7 +174,7 @@ class TestDeribitClientFixed:
         mock_response.json.return_value = {
             "jsonrpc": "2.0",
             "id": 1,
-            "result": {"version": "1.0.0"}
+            "result": {"version": "1.0.0"},
         }
 
         mock_post_context = AsyncMock()
@@ -184,7 +184,7 @@ class TestDeribitClientFixed:
         mock_session.post.return_value = mock_post_context
         mock_session.close = AsyncMock()
 
-        with patch.object(client, '_create_session', return_value=mock_session):
+        with patch.object(client, "_create_session", return_value=mock_session):
             async with client:
                 is_healthy = await client.health_check()
                 assert is_healthy is True
@@ -198,7 +198,7 @@ class TestDeribitClientFixed:
 
         client = DeribitClient()
 
-        with patch.object(client, '_create_session') as mock_create:
+        with patch.object(client, "_create_session") as mock_create:
             mock_create.return_value.__aenter__.return_value = mock_session
             is_healthy = await client.health_check()
             assert is_healthy is False
@@ -215,15 +215,19 @@ class TestDeribitClientFixed:
             mock_context = AsyncMock()
 
             if call_count["count"] < 3:
-                mock_context.__aenter__.side_effect = aiohttp.ClientError(f"Connection failed {call_count['count']}")
+                mock_context.__aenter__.side_effect = aiohttp.ClientError(
+                    f"Connection failed {call_count['count']}"
+                )
             else:
                 mock_response = AsyncMock()
                 mock_response.status = 200
-                mock_response.json = AsyncMock(return_value={
-                    "jsonrpc": "2.0",
-                    "id": 1,
-                    "result": {"index_price": 50000.50}
-                })
+                mock_response.json = AsyncMock(
+                    return_value={
+                        "jsonrpc": "2.0",
+                        "id": 1,
+                        "result": {"index_price": 50000.50},
+                    }
+                )
                 mock_context.__aenter__.return_value = mock_response
             return mock_context
 
@@ -233,13 +237,11 @@ class TestDeribitClientFixed:
 
         client = DeribitClient(max_retries=3)
 
-        with patch.object(client, '_create_session', return_value=mock_session):
-            with patch('asyncio.sleep', AsyncMock()) as mock_sleep:
+        with patch.object(client, "_create_session", return_value=mock_session):
+            with patch("asyncio.sleep", AsyncMock()) as mock_sleep:
                 async with client:
                     result = await client.get_index_price("btc_usd")
 
                     assert call_count["count"] == 3
                     assert result["index_price"] == 50000.50
                     assert mock_sleep.call_count == 2
-
-

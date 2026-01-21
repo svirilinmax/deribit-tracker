@@ -1,5 +1,6 @@
-from pydantic_settings import BaseSettings
 from typing import Optional
+
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
@@ -8,7 +9,6 @@ class Settings(BaseSettings):
     APP_NAME: str = "Deribit Tracker"
     APP_ENV: str = "development"
     DEBUG: bool = False
-
 
     # База данных
     POSTGRES_HOST: str = "localhost"
@@ -21,10 +21,11 @@ class Settings(BaseSettings):
     def database_url(self) -> str:
         """Получить URL для подключения к БД"""
 
-        return (f"postgresql://{self.POSTGRES_USER}:"
-                f"{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:"
-                f"{self.POSTGRES_PORT}/{self.POSTGRES_DB}")
-
+        return (
+            f"postgresql://{self.POSTGRES_USER}:"  # noqa E231
+            f"{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:"  # noqa E231
+            f"{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+        )
 
     REDIS_HOST: str = "localhost"
     REDIS_PORT: int = 6379
@@ -34,8 +35,9 @@ class Settings(BaseSettings):
     def redis_url(self) -> str:
         """Получить URL для подключения к Redis"""
 
-        return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
-
+        return (
+            f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"  # noqa E231
+        )
 
     DERIBIT_BASE_URL: str = "https://test.deribit.com/api/v2"
     DERIBIT_API_TIMEOUT: int = 30

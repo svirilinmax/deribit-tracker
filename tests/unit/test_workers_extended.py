@@ -1,33 +1,33 @@
-import pytest
-from unittest.mock import Mock, AsyncMock
-from unittest.mock import patch
 import asyncio
+from unittest.mock import AsyncMock, Mock, patch
 
+import pytest
+
+from app.clients.exceptions import DeribitConnectionError
 from app.workers.tasks import (
-    fetch_prices_task,
-    health_check_task,
-    cleanup_old_prices_task,
+    _check_database_health,
+    _check_redis_health,
     _fetch_prices_async,
     _save_prices_to_db,
-    _check_database_health,
-    _check_redis_health
+    cleanup_old_prices_task,
+    fetch_prices_task,
+    health_check_task,
 )
-from app.clients.exceptions import DeribitAPIError, DeribitConnectionError
 
 
 class TestCeleryTasksExtended:
     """Расширенные тесты Celery задач"""
 
-    @patch('app.workers.tasks.run_async')
-    @patch('app.workers.tasks._fetch_prices_async')
-    @patch('app.workers.tasks._save_prices_to_db')
+    @patch("app.workers.tasks.run_async")
+    @patch("app.workers.tasks._fetch_prices_async")
+    @patch("app.workers.tasks._save_prices_to_db")
     def test_fetch_prices_task_partial_success(self, mock_save, mock_fetch, mock_run):
         """Тест частично успешного получения цен"""
 
         mock_run.return_value = {
             "btc_usd": {"index_price": 95194.62, "timestamp": 1705593600000},
             "eth_usd": {"index_price": None, "timestamp": 1705593600000},
-            "invalid": "wrong_format"
+            "invalid": "wrong_format",
         }
 
         mock_fetch.return_value = None
@@ -42,14 +42,14 @@ class TestCeleryTasksExtended:
         assert "details" in result
         assert "errors" in result
 
-    @patch('app.workers.tasks.run_async')
-    @patch('app.workers.tasks._save_prices_to_db')
+    @patch("app.workers.tasks.run_async")
+    @patch("app.workers.tasks._save_prices_to_db")
     def test_fetch_prices_task_with_validation_errors(self, mock_save, mock_run_async):
         """Тест с ошибками валидации при сохранении"""
 
         mock_run_async.return_value = {
             "btc_usd": {"index_price": 95194.62, "timestamp": 1705593600000},
-            "eth_usd": {"index_price": -100.0, "timestamp": 1705593600000}
+            "eth_usd": {"index_price": -100.0, "timestamp": 1705593600000},
         }
         mock_save.side_effect = Exception("Validation error")
 
@@ -58,9 +58,9 @@ class TestCeleryTasksExtended:
         assert result["status"] == "error"
         assert "validation error" in result["errors"][0].lower()
 
-    @patch('app.workers.tasks._check_database_health')
-    @patch('app.workers.tasks._check_redis_health')
-    @patch('app.workers.tasks.run_async')
+    @patch("app.workers.tasks._check_database_health")
+    @patch("app.workers.tasks._check_redis_health")
+    @patch("app.workers.tasks.run_async")
     def test_health_check_task_with_detailed_info(
         self, mock_run_async, mock_redis_health, mock_db_health
     ):
@@ -70,12 +70,12 @@ class TestCeleryTasksExtended:
         mock_db_health.return_value = {
             "connected": True,
             "tables": 5,
-            "can_write": True
+            "can_write": True,
         }
         mock_redis_health.return_value = {
             "connected": True,
             "memory_used": "1.2MB",
-            "clients": 3
+            "clients": 3,
         }
 
         result = health_check_task()
@@ -85,10 +85,10 @@ class TestCeleryTasksExtended:
         assert result["checks"]["database"]["connected"] is True
         assert result["checks"]["redis"]["connected"] is True
 
-    @patch('app.workers.tasks._check_database_health')
-    @patch('app.workers.tasks._check_redis_health')
-    @patch('app.workers.tasks.run_async')
-    @patch('app.workers.tasks._check_deribit_health_async')
+    @patch("app.workers.tasks._check_database_health")
+    @patch("app.workers.tasks._check_redis_health")
+    @patch("app.workers.tasks.run_async")
+    @patch("app.workers.tasks._check_deribit_health_async")
     def test_health_check_task_timeout(
         self, mock_deri_async, mock_run_async, mock_redis_health, mock_db_health
     ):
@@ -104,7 +104,7 @@ class TestCeleryTasksExtended:
         assert result["status"] == "unhealthy"
         assert "timeout" in result["checks"]["deribit_api"].get("error", "").lower()
 
-    @patch('app.workers.tasks.get_db_context')
+    @patch("app.workers.tasks.get_db_context")
     def test_cleanup_old_prices_with_different_periods(self, mock_db_context):
         """Тест очистки с разными периодами"""
 
@@ -120,7 +120,7 @@ class TestCeleryTasksExtended:
             mock_result = Mock()
             mock_result.rowcount = days * 10
 
-            with patch('app.workers.tasks.delete') as mock_delete:
+            with patch("app.workers.tasks.delete") as mock_delete:
                 mock_session.execute.return_value = mock_result
 
                 result = cleanup_old_prices_task(days_to_keep=days)
@@ -130,7 +130,7 @@ class TestCeleryTasksExtended:
                 assert result["deleted_count"] == days * 10
                 mock_delete.assert_called_once()
 
-    @patch('app.workers.tasks.get_db_context')
+    @patch("app.workers.tasks.get_db_context")
     def test_cleanup_old_prices_error(self, mock_db_context):
         """Тест ошибки при очистке"""
 
@@ -140,7 +140,7 @@ class TestCeleryTasksExtended:
         mock_db.__exit__ = Mock(side_effect=Exception("Database error"))
         mock_db_context.return_value = mock_db
 
-        with patch('app.workers.tasks.text'):
+        with patch("app.workers.tasks.text"):
             mock_session.execute.side_effect = Exception("SQL error")
 
             result = cleanup_old_prices_task(days_to_keep=30)
@@ -150,7 +150,7 @@ class TestCeleryTasksExtended:
             assert "database error" in result.get("error", "").lower()
 
     @pytest.mark.asyncio
-    @patch('app.workers.tasks.DeribitClient')
+    @patch("app.workers.tasks.DeribitClient")
     async def test_fetch_prices_async_empty_response(self, mock_client_class):
         """Тест пустого ответа от API"""
 
@@ -167,7 +167,7 @@ class TestCeleryTasksExtended:
         mock_client.get_multiple_index_prices.assert_called_once()
 
     @pytest.mark.asyncio
-    @patch('app.workers.tasks.DeribitClient')
+    @patch("app.workers.tasks.DeribitClient")
     async def test_fetch_prices_async_with_retry_logic(self, mock_client_class):
         """Тест логики повторных попыток"""
 
@@ -181,7 +181,7 @@ class TestCeleryTasksExtended:
 
             return {
                 "btc_usd": {"index_price": 95194.62},
-                "eth_usd": {"index_price": 3342.62}
+                "eth_usd": {"index_price": 3342.62},
             }
 
         mock_client = AsyncMock()
@@ -197,9 +197,11 @@ class TestCeleryTasksExtended:
         assert "btc_usd" in result
         assert "eth_usd" in result
 
-    @patch('app.workers.tasks.PriceService')
-    @patch('app.workers.tasks.get_db_context')
-    def test_save_prices_to_db_with_duplicates(self, mock_db_context, mock_price_service):
+    @patch("app.workers.tasks.PriceService")
+    @patch("app.workers.tasks.get_db_context")
+    def test_save_prices_to_db_with_duplicates(
+        self, mock_db_context, mock_price_service
+    ):
         """Тест сохранения дублирующихся цен"""
 
         mock_session = Mock()
@@ -210,20 +212,20 @@ class TestCeleryTasksExtended:
 
         mock_price_service.create_price.side_effect = [
             Mock(id=1),
-            Exception("UNIQUE constraint failed")
+            Exception("UNIQUE constraint failed"),
         ]
 
         prices_data = {
             "btc_usd": {
                 "index_price": 95194.62,
                 "timestamp": 1705593600000,
-                "source_data": {}
+                "source_data": {},
             },
             "eth_usd": {
                 "index_price": 95194.62,
                 "timestamp": 1705593600000,
-                "source_data": {}
-            }
+                "source_data": {},
+            },
         }
 
         saved_count = _save_prices_to_db(prices_data)
@@ -231,7 +233,7 @@ class TestCeleryTasksExtended:
         assert saved_count == 1
         assert mock_price_service.create_price.call_count == 2
 
-    @patch('app.workers.tasks.get_db_context')
+    @patch("app.workers.tasks.get_db_context")
     def test_check_database_health_detailed(self, mock_db_context):
         """Тест детальной проверки базы данных"""
 
@@ -248,8 +250,8 @@ class TestCeleryTasksExtended:
         result_error = _check_database_health()
         assert result_error is False
 
-    @patch('app.workers.tasks.redis.Redis')
-    @patch('app.workers.tasks.settings')
+    @patch("app.workers.tasks.redis.Redis")
+    @patch("app.workers.tasks.settings")
     def test_check_redis_health_detailed(self, mock_settings, mock_redis_class):
         """Тест детальной проверки Redis"""
 
@@ -264,19 +266,17 @@ class TestCeleryTasksExtended:
         assert result is True
         mock_redis_class.from_url.assert_called_once()
 
-
-
-    @patch('app.workers.tasks.run_async')
+    @patch("app.workers.tasks.run_async")
     def test_fetch_prices_task_custom_tickers(self, mock_run_async):
         """Тест получения цен для кастомного списка тикеров"""
 
         mock_run_async.return_value = {
             "btc_usd": {"index_price": 95194.62, "timestamp": 1705593600000},
-            "eth_usd": {"index_price": 3342.62, "timestamp": 1705593600000}
+            "eth_usd": {"index_price": 3342.62, "timestamp": 1705593600000},
         }
 
-        with patch('app.workers.tasks._fetch_prices_async') as mock_fetch:
-            with patch('app.workers.tasks._save_prices_to_db', return_value=2):
+        with patch("app.workers.tasks._fetch_prices_async") as mock_fetch:
+            with patch("app.workers.tasks._save_prices_to_db", return_value=2):
                 result = fetch_prices_task()
 
                 assert result["prices_fetched"] == 2
@@ -288,6 +288,6 @@ class TestCeleryTasksExtended:
     def test_task_error_handling_comprehensive(self):
         """Тест всесторонней обработки ошибок"""
 
-        assert hasattr(fetch_prices_task, '__wrapped__')
-        assert hasattr(health_check_task, '__wrapped__')
-        assert hasattr(cleanup_old_prices_task, '__wrapped__')
+        assert hasattr(fetch_prices_task, "__wrapped__")
+        assert hasattr(health_check_task, "__wrapped__")
+        assert hasattr(cleanup_old_prices_task, "__wrapped__")

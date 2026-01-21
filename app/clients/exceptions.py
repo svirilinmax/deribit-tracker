@@ -1,5 +1,6 @@
 class DeribitClientError(Exception):
     """Базовое исключение для клиента Deribit"""
+
     pass
 
 
@@ -13,14 +14,17 @@ class DeribitAPIError(DeribitClientError):
 
 class DeribitConnectionError(DeribitClientError):
     """Ошибка соединения с Deribit"""
+
     pass
 
 
 class DeribitRateLimitError(DeribitAPIError):
     """Превышение лимита запросов"""
+
     pass
 
 
 class DeribitValidationError(DeribitClientError):
     """Ошибка валидации данных"""
+
     pass

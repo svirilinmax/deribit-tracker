@@ -1,7 +1,3 @@
-import pytest
-from fastapi.testclient import TestClient
-
-
 class TestPricesAPI:
     """Тесты API эндпоинтов для цен"""
 
@@ -60,7 +56,6 @@ class TestPricesAPI:
             db_session.add(price)
         db_session.commit()
 
-
         response1 = test_client.get("/v1/prices/?ticker=btc_usd&skip=0&limit=2")
         data1 = response1.json()
         assert len(data1) == 2
@@ -98,6 +93,7 @@ class TestPricesAPI:
         """Тест получения последней цены при отсутствии данных"""
 
         from app.db.models import Price
+
         db_session.query(Price).delete()
         db_session.commit()
 
@@ -193,10 +189,8 @@ class TestPricesAPI:
 
         from app.db.models import Price
 
-
         db_session.query(Price).delete()
         db_session.commit()
-
 
         tickers = ["btc_usd", "eth_usd", "btc_usd"]
 
@@ -228,12 +222,14 @@ class TestPricesAPI:
             "ticker": "btc_usd",
             "price": 50000.50,
             "timestamp": 1705593600000,
-            "source_timestamp": 1705593600000000
+            "source_timestamp": 1705593600000000,
         }
 
         response = test_client.post("/v1/prices/", json=price_data)
 
-        assert response.status_code == 201, f"Expected 201, got {response.status_code}: {response.text}"
+        assert (
+            response.status_code == 201
+        ), f"Expected 201, got {response.status_code}: {response.text}"
 
         data = response.json()
         assert data["ticker"] == "btc_usd"
@@ -243,11 +239,7 @@ class TestPricesAPI:
     def test_create_price_invalid_data(self, test_client):
         """Тест создания записи с невалидными данными"""
 
-        invalid_data = {
-            "ticker": "bt",
-            "price": -100,
-            "timestamp": 1705593600000
-        }
+        invalid_data = {"ticker": "bt", "price": -100, "timestamp": 1705593600000}
 
         response = test_client.post("/v1/prices/", json=invalid_data)
         assert response.status_code == 422
@@ -257,7 +249,10 @@ class TestPricesAPI:
 
         response = test_client.get("/")
         assert response.status_code == 200
-        assert "deribit" in response.json()["message"].lower() or "tracker" in response.json()["message"].lower()
+        assert (
+            "deribit" in response.json()["message"].lower()
+            or "tracker" in response.json()["message"].lower()
+        )
 
     def test_health_endpoint(self, test_client):
         """Тест health check эндпоинта"""

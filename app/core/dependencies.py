@@ -1,8 +1,9 @@
 from typing import Generator
+
 from sqlalchemy.orm import Session
 
-from app.db.session import get_db
 from app.clients.deribit import get_deribit_client
+from app.db.session import get_db
 
 
 def get_db_dependency() -> Generator[Session, None, None]:

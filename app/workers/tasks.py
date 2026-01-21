@@ -1,18 +1,19 @@
 import asyncio
 import time
-from typing import Dict, Any
+from typing import Any, Dict
 
-from sqlalchemy import delete
 import redis
-from app.core.config import settings
+from sqlalchemy import delete
 
-from .celery_app import celery_app
 from app.clients.deribit import DeribitClient
 from app.clients.exceptions import DeribitAPIError, DeribitConnectionError
-from app.db.session import get_db_context
-from app.services.price_service import PriceService
-from app.schemas.price import PriceCreate
+from app.core.config import settings
 from app.core.logging import get_logger
+from app.db.session import get_db_context
+from app.schemas.price import PriceCreate
+from app.services.price_service import PriceService
+
+from .celery_app import celery_app
 
 logger = get_logger(__name__)
 
@@ -32,7 +33,7 @@ def fetch_prices_task(self) -> Dict[str, Any]:
     task_id = self.request.id
     logger.info(
         "Запуск задачи получения цен",
-        extra={"task_id": task_id, "attempt": self.request.retries}
+        extra={"task_id": task_id, "attempt": self.request.retries},
     )
 
     results = {
@@ -71,7 +72,7 @@ def fetch_prices_task(self) -> Dict[str, Any]:
             if isinstance(data, dict):
                 results["details"][ticker] = {
                     "price": data.get("index_price"),
-                    "timestamp": data.get("timestamp")
+                    "timestamp": data.get("timestamp"),
                 }
 
         logger.info(
@@ -79,8 +80,8 @@ def fetch_prices_task(self) -> Dict[str, Any]:
             extra={
                 "task_id": task_id,
                 "prices_fetched": len(prices_data),
-                "prices_saved": saved_count
-            }
+                "prices_saved": saved_count,
+            },
         )
 
     except DeribitAPIError as e:
@@ -88,7 +89,7 @@ def fetch_prices_task(self) -> Dict[str, Any]:
         results["errors"].append(f"API ошибка: {str(e)}")
         logger.error(
             "Ошибка API при выполнении задачи",
-            extra={"task_id": task_id, "error": str(e), "error_code": e.code}
+            extra={"task_id": task_id, "error": str(e), "error_code": e.code},
         )
 
     except DeribitConnectionError as e:
@@ -96,15 +97,14 @@ def fetch_prices_task(self) -> Dict[str, Any]:
         results["errors"].append(f"Ошибка соединения: {str(e)}")
         logger.error(
             "Ошибка соединения при выполнении задачи",
-            extra={"task_id": task_id, "error": str(e)}
+            extra={"task_id": task_id, "error": str(e)},
         )
 
     except Exception as e:
         results["status"] = "error"
         results["errors"].append(f"Неизвестная ошибка: {str(e)}")
         logger.exception(
-            "Неизвестная ошибка при выполнении задачи",
-            extra={"task_id": task_id}
+            "Неизвестная ошибка при выполнении задачи", extra={"task_id": task_id}
         )
 
     return results
@@ -130,11 +130,15 @@ async def _fetch_prices_async() -> Dict[str, Dict[str, Any]]:
                 current_timestamp = int(time.time() * 1000)
                 result = {}
                 for ticker, data in prices_data.items():
-                    if isinstance(data, dict) and "error" not in data and "index_price" in data:
+                    if (
+                        isinstance(data, dict)
+                        and "error" not in data
+                        and "index_price" in data
+                    ):
                         result[ticker] = {
                             "index_price": data["index_price"],
                             "timestamp": current_timestamp,
-                            "source_data": data
+                            "source_data": data,
                         }
                 return result
 
@@ -142,7 +146,7 @@ async def _fetch_prices_async() -> Dict[str, Dict[str, Any]]:
                 last_exception = e
                 logger.warning(
                     f"Попытка {attempt}/{max_retries} не удалась: {e}",
-                    extra={"attempt": attempt}
+                    extra={"attempt": attempt},
                 )
                 if attempt < max_retries:
                     await asyncio.sleep(retry_delay)
@@ -150,7 +154,6 @@ async def _fetch_prices_async() -> Dict[str, Dict[str, Any]]:
 
         logger.error("Все попытки получения цен исчерпаны")
         raise last_exception
-
 
 
 def _save_prices_to_db(prices_data: Dict[str, Dict[str, Any]]) -> int:
@@ -167,7 +170,7 @@ def _save_prices_to_db(prices_data: Dict[str, Dict[str, Any]]) -> int:
                     ticker=ticker,
                     price=data["index_price"],
                     timestamp=data["timestamp"],
-                    source_timestamp=int(time.time() * 1_000_000)  # микросекунды
+                    source_timestamp=int(time.time() * 1_000_000),  # микросекунды
                 )
 
                 # Сохраняем цену
@@ -179,14 +182,14 @@ def _save_prices_to_db(prices_data: Dict[str, Dict[str, Any]]) -> int:
                     extra={
                         "ticker": ticker,
                         "price": data["index_price"],
-                        "timestamp": data["timestamp"]
-                    }
+                        "timestamp": data["timestamp"],
+                    },
                 )
 
             except Exception as e:
                 logger.error(
                     "Ошибка при сохранении цены в БД",
-                    extra={"ticker": ticker, "error": str(e)}
+                    extra={"ticker": ticker, "error": str(e)},
                 )
         db.commit()
 
@@ -206,7 +209,7 @@ def health_check_task(self) -> Dict[str, Any]:
         "task_id": task_id,
         "timestamp": int(time.time() * 1000),
         "checks": {},
-        "status": "healthy"
+        "status": "healthy",
     }
 
     try:
@@ -214,40 +217,51 @@ def health_check_task(self) -> Dict[str, Any]:
             api_available = run_async(_check_deribit_health_async())
             results["checks"]["deribit_api"] = {
                 "available": api_available,
-                "status": "ok" if api_available else "error"
+                "status": "ok" if api_available else "error",
             }
         except asyncio.TimeoutError:
             results["checks"]["deribit_api"] = {
                 "available": False,
                 "status": "error",
-                "error": "API timeout"
+                "error": "API timeout",
             }
         except Exception as e:
             results["checks"]["deribit_api"] = {
                 "available": False,
                 "status": "error",
-                "error": str(e)
+                "error": str(e),
             }
 
         # 2. Проверка БД (Исправлено для тестов)
         db_info = _check_database_health()
         if isinstance(db_info, dict):
             # Если вернулся словарь, распаковываем его
-            results["checks"]["database"] = {"available": db_info.get("connected", False)}
+            results["checks"]["database"] = {
+                "available": db_info.get("connected", False)
+            }
             results["checks"]["database"].update(db_info)
         else:
             # Если вернулся булево значение
             results["checks"]["database"] = {"available": db_info, "connected": db_info}
-        results["checks"]["database"]["status"] = "ok" if results["checks"]["database"]["available"] else "error"
+        results["checks"]["database"]["status"] = (
+            "ok" if results["checks"]["database"]["available"] else "error"
+        )
 
         # 3. Проверка Redis
         redis_info = _check_redis_health()
         if isinstance(redis_info, dict):
-            results["checks"]["redis"] = {"available": redis_info.get("connected", False)}
+            results["checks"]["redis"] = {
+                "available": redis_info.get("connected", False)
+            }
             results["checks"]["redis"].update(redis_info)
         else:
-            results["checks"]["redis"] = {"available": redis_info, "connected": redis_info}
-        results["checks"]["redis"]["status"] = "ok" if results["checks"]["redis"]["available"] else "error"
+            results["checks"]["redis"] = {
+                "available": redis_info,
+                "connected": redis_info,
+            }
+        results["checks"]["redis"]["status"] = (
+            "ok" if results["checks"]["redis"]["available"] else "error"
+        )
 
         # 4. Определяем общий статус
         all_checks_ok = all(
@@ -257,16 +271,17 @@ def health_check_task(self) -> Dict[str, Any]:
 
         logger.info(
             "Задача проверки здоровья выполнена",
-            extra={"task_id": task_id, "status": results["status"]}
+            extra={"task_id": task_id, "status": results["status"]},
         )
 
     except Exception as e:
         results["status"] = "error"
         results["error"] = str(e)
-        logger.error("Ошибка при проверке здоровья", extra={"task_id": task_id, "error": str(e)})
+        logger.error(
+            "Ошибка при проверке здоровья", extra={"task_id": task_id, "error": str(e)}
+        )
 
     return results
-
 
 
 async def _check_deribit_health_async() -> bool:
@@ -308,8 +323,7 @@ def cleanup_old_prices_task(days_to_keep: int = 30) -> Dict[str, Any]:
     """
 
     logger.info(
-        "Запуск задачи очистки старых цен",
-        extra={"days_to_keep": days_to_keep}
+        "Запуск задачи очистки старых цен", extra={"days_to_keep": days_to_keep}
     )
 
     results = {
@@ -321,7 +335,9 @@ def cleanup_old_prices_task(days_to_keep: int = 30) -> Dict[str, Any]:
     }
 
     try:
-        cutoff_timestamp = int(time.time() * 1000) - (days_to_keep * 24 * 60 * 60 * 1000)
+        cutoff_timestamp = int(time.time() * 1000) - (
+            days_to_keep * 24 * 60 * 60 * 1000
+        )
 
         with get_db_context() as db:
             from app.db.models import Price
@@ -334,7 +350,7 @@ def cleanup_old_prices_task(days_to_keep: int = 30) -> Dict[str, Any]:
 
             logger.info(
                 "Очистка старых цен завершена",
-                extra={"deleted_count": result.rowcount, "days_to_keep": days_to_keep}
+                extra={"deleted_count": result.rowcount, "days_to_keep": days_to_keep},
             )
 
     except Exception as e:
@@ -342,7 +358,7 @@ def cleanup_old_prices_task(days_to_keep: int = 30) -> Dict[str, Any]:
         results["error"] = str(e)
         logger.error(
             "Ошибка при очистке старых цен",
-            extra={"error": str(e), "days_to_keep": days_to_keep}
+            extra={"error": str(e), "days_to_keep": days_to_keep},
         )
 
     return results

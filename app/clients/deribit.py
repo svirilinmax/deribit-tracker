@@ -1,10 +1,12 @@
 import asyncio
-from typing import Dict, Any, Optional, List
-import aiohttp
-from aiohttp import ClientTimeout, ClientSession
 import logging
+from typing import Any, Dict, List, Optional
+
+import aiohttp
+from aiohttp import ClientSession, ClientTimeout
 
 from app.core.config import settings
+
 from .exceptions import DeribitAPIError, DeribitConnectionError
 
 logger = logging.getLogger(__name__)
@@ -17,7 +19,7 @@ class DeribitClient:
         self,
         base_url: Optional[str] = None,
         timeout: Optional[int] = None,
-        max_retries: Optional[int] = None
+        max_retries: Optional[int] = None,
     ):
         self.base_url = base_url or settings.DERIBIT_BASE_URL
         self.timeout = timeout or settings.DERIBIT_API_TIMEOUT
@@ -53,31 +55,32 @@ class DeribitClient:
             "jsonrpc": "2.0",
             "id": self._get_next_request_id(),
             "method": method,
-            "params": params
+            "params": params,
         }
 
     async def _make_request(
-        self,
-        method: str,
-        params: Dict[str, Any],
-        retry_count: int = 0
+        self, method: str, params: Dict[str, Any], retry_count: int = 0
     ) -> Dict[str, Any]:
         if not self.session:
-            raise DeribitConnectionError("Сессия не инициализирована. Используйте контекстный менеджер.")
+            raise DeribitConnectionError(
+                "Сессия не инициализирована. Используйте контекстный менеджер."
+            )
 
         request_data = self._build_request(method, params)
 
         try:
             logger.debug(
                 "Выполняем запрос к Deribit API",
-                extra={"method": method, "params": params, "attempt": retry_count + 1}
+                extra={"method": method, "params": params, "attempt": retry_count + 1},
             )
 
             async with self.session.post(self.base_url, json=request_data) as response:
                 if response.status == 429:
                     retry_after = int(response.headers.get("Retry-After", 1))
                     if retry_count < self.max_retries:
-                        logger.warning(f"Rate limit (429). Повтор через {retry_after}с.")
+                        logger.warning(
+                            f"Rate limit (429). Повтор через {retry_after}с."
+                        )
                         await asyncio.sleep(retry_after)
                         return await self._make_request(method, params, retry_count + 1)
                     else:
@@ -99,16 +102,22 @@ class DeribitClient:
                 return data.get("result", {})
 
         except (aiohttp.ClientError, asyncio.TimeoutError, OSError) as e:
-            error_type = "Таймаут" if isinstance(e, asyncio.TimeoutError) else "Сетевая ошибка"
+            error_type = (
+                "Таймаут" if isinstance(e, asyncio.TimeoutError) else "Сетевая ошибка"
+            )
             logger.error(f"{error_type} при запросе к Deribit: {str(e)}")
 
             if retry_count < self.max_retries:
-                wait_time = settings.API_RETRY_DELAY * (settings.API_RETRY_BACKOFF ** retry_count)
+                wait_time = settings.API_RETRY_DELAY * (
+                    settings.API_RETRY_BACKOFF**retry_count
+                )
                 logger.info(f"Повторная попытка через {wait_time} секунд...")
                 await asyncio.sleep(wait_time)
                 return await self._make_request(method, params, retry_count + 1)
             else:
-                raise DeribitConnectionError(f"Превышено количество попыток после {error_type.lower()}: {str(e)}")
+                raise DeribitConnectionError(
+                    f"Превышено количество попыток после {error_type.lower()}: {str(e)}"
+                )
 
     async def get_index_price(self, index_name: str) -> Dict[str, Any]:
         """
@@ -117,12 +126,16 @@ class DeribitClient:
 
         valid_indices = ["btc_usd", "eth_usd"]
         if index_name not in valid_indices:
-            raise ValueError(f"Недопустимый индекс. Допустимые значения: {valid_indices}")
+            raise ValueError(
+                f"Недопустимый индекс. Допустимые значения: {valid_indices}"
+            )
 
         params = {"index_name": index_name}
         return await self._make_request("public/get_index_price", params)
 
-    async def get_multiple_index_prices(self, indices: List[str]) -> Dict[str, Dict[str, Any]]:
+    async def get_multiple_index_prices(
+        self, indices: List[str]
+    ) -> Dict[str, Dict[str, Any]]:
         """
         Получить цены для нескольких индексов
         """
@@ -152,7 +165,6 @@ class DeribitClient:
             return True
         except Exception:
             return False
-
 
 
 _client: Optional[DeribitClient] = None

@@ -1,8 +1,9 @@
-import pytest
 from datetime import datetime
+
+import pytest
 from pydantic import ValidationError
 
-from app.schemas.price import PriceCreate, PriceResponse, PriceBase
+from app.schemas.price import PriceBase, PriceCreate, PriceResponse
 
 
 class TestPriceSchemas:
@@ -11,11 +12,7 @@ class TestPriceSchemas:
     def test_price_base_schema(self):
         """Тест базовой схемы"""
 
-        data = {
-            "ticker": "btc_usd",
-            "price": 50000.50,
-            "timestamp": 1705593600000
-        }
+        data = {"ticker": "btc_usd", "price": 50000.50, "timestamp": 1705593600000}
 
         price = PriceBase(**data)
         assert price.ticker == "btc_usd"
@@ -84,7 +81,7 @@ class TestPriceSchemas:
             "ticker": "eth_usd",
             "price": 2500.75,
             "timestamp": 1705593600000,
-            "source_timestamp": 1705593600000000
+            "source_timestamp": 1705593600000000,
         }
 
         price_create = PriceCreate(**data)

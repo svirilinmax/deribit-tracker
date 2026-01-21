@@ -1,5 +1,6 @@
-import pytest
 from datetime import datetime
+
+import pytest
 from sqlalchemy.exc import IntegrityError
 
 from app.db.models import Price
@@ -39,7 +40,9 @@ class TestPriceModel:
         db_session.add(price)
         db_session.commit()
 
-        expected = f"<Price(ticker=btc_usd, price=50000.50000000, timestamp=1705593600000)>"
+        expected = (
+            "<Price(ticker=btc_usd, price=50000.50000000, timestamp=1705593600000)>"
+        )
         assert str(price) == expected
 
     def test_price_decimal_precision(self, db_session):
@@ -49,12 +52,11 @@ class TestPriceModel:
             ticker="btc_usd",
             price=12345.67890123,
             timestamp=1705593600000,
-            source_timestamp=1705593600000000
+            source_timestamp=1705593600000000,
         )
         db_session.add(price)
         db_session.commit()
         db_session.refresh(price)
-
 
         assert abs(float(price.price) - 12345.67890123) < 0.00000001
 
@@ -68,10 +70,14 @@ class TestPriceModel:
             db_session.add(price)
         db_session.commit()
 
-        prices = db_session.query(Price).filter(
-            Price.ticker == "btc_usd",
-            Price.timestamp >= sample_price_data["timestamp"],
-            Price.timestamp <= sample_price_data["timestamp"] + 120000
-        ).all()
+        prices = (
+            db_session.query(Price)
+            .filter(
+                Price.ticker == "btc_usd",
+                Price.timestamp >= sample_price_data["timestamp"],
+                Price.timestamp <= sample_price_data["timestamp"] + 120000,
+            )
+            .all()
+        )
 
         assert len(prices) == 3

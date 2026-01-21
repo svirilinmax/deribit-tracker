@@ -16,4 +16,4 @@ mock_settings.LOG_FILE = None
 mock_settings.database_url = "sqlite:///./test.db"
 mock_settings.redis_url = "redis://localhost:6379/0"
 
-sys.modules['app.core.config.settings'] = mock_settings
+sys.modules["app.core.config.settings"] = mock_settings

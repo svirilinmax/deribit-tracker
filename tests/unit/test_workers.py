@@ -1,26 +1,27 @@
+from unittest.mock import AsyncMock, Mock, patch
+
 import pytest
-from unittest.mock import Mock, patch, AsyncMock
 
 from app.workers.tasks import (
+    _fetch_prices_async,
+    _save_prices_to_db,
+    cleanup_old_prices_task,
     fetch_prices_task,
     health_check_task,
-    cleanup_old_prices_task,
-    _fetch_prices_async,
-    _save_prices_to_db
 )
 
 
 class TestCeleryTasks:
     """Тесты Celery задач"""
 
-    @patch('app.workers.tasks.run_async')
-    @patch('app.workers.tasks._save_prices_to_db')
+    @patch("app.workers.tasks.run_async")
+    @patch("app.workers.tasks._save_prices_to_db")
     def test_fetch_prices_task_success(self, mock_save, mock_run_async):
         """Тест успешного выполнения задачи получения цен"""
 
         mock_run_async.return_value = {
             "btc_usd": {"index_price": 95194.62, "timestamp": 1705593600000},
-            "eth_usd": {"index_price": 3342.62, "timestamp": 1705593600000}
+            "eth_usd": {"index_price": 3342.62, "timestamp": 1705593600000},
         }
         mock_save.return_value = 2
 
@@ -35,7 +36,7 @@ class TestCeleryTasks:
         mock_run_async.assert_called_once()
         mock_save.assert_called_once_with(mock_run_async.return_value)
 
-    @patch('app.workers.tasks.run_async')
+    @patch("app.workers.tasks.run_async")
     def test_fetch_prices_task_no_data(self, mock_run_async):
         """Тест задачи получения цен без данных"""
 
@@ -47,11 +48,12 @@ class TestCeleryTasks:
         assert result["prices_fetched"] == 0
         assert result["prices_saved"] == 0
 
-    @patch('app.workers.tasks.run_async')
+    @patch("app.workers.tasks.run_async")
     def test_fetch_prices_task_api_error(self, mock_run_async):
         """Тест задачи получения цен с ошибкой API"""
 
         from app.clients.exceptions import DeribitAPIError
+
         mock_run_async.side_effect = DeribitAPIError("API Error", code=-1)
 
         result = fetch_prices_task()
@@ -60,11 +62,12 @@ class TestCeleryTasks:
         assert len(result["errors"]) > 0
         assert "API ошибка" in result["errors"][0]
 
-    @patch('app.workers.tasks.run_async')
+    @patch("app.workers.tasks.run_async")
     def test_fetch_prices_task_connection_error(self, mock_run_async):
         """Тест задачи получения цен с ошибкой соединения"""
 
         from app.clients.exceptions import DeribitConnectionError
+
         mock_run_async.side_effect = DeribitConnectionError("Connection failed")
 
         result = fetch_prices_task()
@@ -73,9 +76,9 @@ class TestCeleryTasks:
         assert len(result["errors"]) > 0
         assert "Ошибка соединения" in result["errors"][0]
 
-    @patch('app.workers.tasks._check_database_health')
-    @patch('app.workers.tasks._check_redis_health')
-    @patch('app.workers.tasks.run_async')
+    @patch("app.workers.tasks._check_database_health")
+    @patch("app.workers.tasks._check_redis_health")
+    @patch("app.workers.tasks.run_async")
     def test_health_check_task_success(
         self, mock_run_async, mock_redis_health, mock_db_health
     ):
@@ -92,9 +95,9 @@ class TestCeleryTasks:
         assert result["checks"]["database"]["available"] is True
         assert result["checks"]["redis"]["available"] is True
 
-    @patch('app.workers.tasks._check_database_health')
-    @patch('app.workers.tasks._check_redis_health')
-    @patch('app.workers.tasks.run_async')
+    @patch("app.workers.tasks._check_database_health")
+    @patch("app.workers.tasks._check_redis_health")
+    @patch("app.workers.tasks.run_async")
     def test_health_check_task_partial_failure(
         self, mock_run_async, mock_redis_health, mock_db_health
     ):
@@ -110,19 +113,18 @@ class TestCeleryTasks:
         assert result["checks"]["deribit_api"]["available"] is False
         assert result["checks"]["database"]["available"] is True
 
-    @patch('app.workers.tasks.run_async')
-    @patch('app.workers.tasks._save_prices_to_db')
+    @patch("app.workers.tasks.run_async")
+    @patch("app.workers.tasks._save_prices_to_db")
     def test_cleanup_old_prices_task(self, mock_save, mock_run_async):
         """Тест задачи очистки старых цен"""
 
-        mock_db_context = Mock()
         mock_session = Mock()
 
         mock_db = Mock()
         mock_db.__enter__ = Mock(return_value=mock_session)
         mock_db.__exit__ = Mock(return_value=None)
 
-        with patch('app.workers.tasks.get_db_context', return_value=mock_db):
+        with patch("app.workers.tasks.get_db_context", return_value=mock_db):
             mock_result = Mock()
             mock_result.rowcount = 5
             mock_session.execute.return_value = mock_result
@@ -134,7 +136,7 @@ class TestCeleryTasks:
             assert result["deleted_count"] == 5
 
     @pytest.mark.asyncio
-    @patch('app.workers.tasks.DeribitClient')
+    @patch("app.workers.tasks.DeribitClient")
     async def test_fetch_prices_async_success(self, mock_client_class):
         """Тест асинхронного получения цен"""
 
@@ -144,7 +146,7 @@ class TestCeleryTasks:
 
         mock_client.get_multiple_index_prices.return_value = {
             "btc_usd": {"index_price": 95194.62},
-            "eth_usd": {"index_price": 3342.62}
+            "eth_usd": {"index_price": 3342.62},
         }
 
         mock_client_class.return_value = mock_client
@@ -157,10 +159,12 @@ class TestCeleryTasks:
         assert "timestamp" in result["btc_usd"]
         assert "source_data" in result["btc_usd"]
 
-        mock_client.get_multiple_index_prices.assert_called_once_with(["btc_usd", "eth_usd"])
+        mock_client.get_multiple_index_prices.assert_called_once_with(
+            ["btc_usd", "eth_usd"]
+        )
 
-    @patch('app.workers.tasks.PriceService')
-    @patch('app.workers.tasks.get_db_context')
+    @patch("app.workers.tasks.PriceService")
+    @patch("app.workers.tasks.get_db_context")
     def test_save_prices_to_db(self, mock_db_context, mock_price_service):
         """Тест сохранения цен в базу данных"""
 
@@ -178,13 +182,13 @@ class TestCeleryTasks:
             "btc_usd": {
                 "index_price": 95194.62,
                 "timestamp": 1705593600000,
-                "source_data": {}
+                "source_data": {},
             },
             "eth_usd": {
                 "index_price": 3342.62,
                 "timestamp": 1705593600000,
-                "source_data": {}
-            }
+                "source_data": {},
+            },
         }
 
         saved_count = _save_prices_to_db(prices_data)

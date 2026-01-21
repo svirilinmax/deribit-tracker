@@ -1,6 +1,6 @@
-from app.services.price_service import PriceService
-from app.schemas.price import PriceCreate
 from app.db.models import Price
+from app.schemas.price import PriceCreate
+from app.services.price_service import PriceService
 
 
 class TestPriceService:
@@ -71,7 +71,7 @@ class TestPriceService:
             db_session,
             ticker="btc_usd",
             start_timestamp=1705593660000,
-            end_timestamp=1705593720000
+            end_timestamp=1705593720000,
         )
 
         assert len(filtered) == 2
@@ -87,7 +87,7 @@ class TestPriceService:
         filtered = PriceService.get_prices_by_date_range(
             db_session,
             ticker="btc_usd",
-            start_timestamp=sample_price_data["timestamp"] - 1000
+            start_timestamp=sample_price_data["timestamp"] - 1000,
         )
 
         assert len(filtered) == 1
@@ -100,7 +100,7 @@ class TestPriceService:
             ticker="btc_usd",
             price=50000.50,
             timestamp=1705593600000,
-            source_timestamp=1705593600000000
+            source_timestamp=1705593600000000,
         )
 
         created_price = PriceService.create_price(db_session, price_create)

@@ -1,10 +1,11 @@
+import asyncio
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import aiohttp
 import pytest
-import asyncio
-from unittest.mock import AsyncMock, patch, MagicMock
 
 from app.clients.deribit import DeribitClient
-from app.clients.exceptions import DeribitAPIError, DeribitConnectionError
+from app.clients.exceptions import DeribitConnectionError
 
 
 class TestDeribitClientExtended:
@@ -26,7 +27,7 @@ class TestDeribitClientExtended:
         mock_response.json.return_value = {
             "jsonrpc": "2.0",
             "id": 1,
-            "result": {"index_price": 50000.50}
+            "result": {"index_price": 50000.50},
         }
 
         mock_post_context = AsyncMock()
@@ -36,7 +37,7 @@ class TestDeribitClientExtended:
         mock_session.post.return_value = mock_post_context
         mock_session.close = AsyncMock()
 
-        with patch.object(client, '_create_session', return_value=mock_session):
+        with patch.object(client, "_create_session", return_value=mock_session):
             async with client:
                 for currency, expected_param in test_cases:
                     result = await client.get_index_price(currency)
@@ -45,8 +46,8 @@ class TestDeribitClientExtended:
                     mock_session.post.assert_called()
 
                     call_args = mock_session.post.call_args
-                    request_body = call_args.kwargs['json']
-                    assert request_body['params']['index_name'] == expected_param
+                    request_body = call_args.kwargs["json"]
+                    assert request_body["params"]["index_name"] == expected_param
 
     @pytest.mark.asyncio
     async def test_get_index_price_rate_limit(self):
@@ -67,7 +68,10 @@ class TestDeribitClientExtended:
             else:
                 resp = AsyncMock()
                 resp.status = 200
-                resp.json.return_value = {"jsonrpc": "2.0", "result": {"index_price": 50000.50}}
+                resp.json.return_value = {
+                    "jsonrpc": "2.0",
+                    "result": {"index_price": 50000.50},
+                }
                 mock_context.__aenter__.return_value = resp
             return mock_context
 
@@ -75,8 +79,8 @@ class TestDeribitClientExtended:
         mock_session.post.side_effect = mock_post_logic
         mock_session.close = AsyncMock()
 
-        with patch.object(client, '_create_session', return_value=mock_session):
-            with patch('asyncio.sleep', AsyncMock()) as mock_sleep:
+        with patch.object(client, "_create_session", return_value=mock_session):
+            with patch("asyncio.sleep", AsyncMock()) as mock_sleep:
                 async with client:
                     result = await client.get_index_price("btc_usd")
 
@@ -92,18 +96,23 @@ class TestDeribitClientExtended:
         mock_session = MagicMock()
 
         mock_post_context = AsyncMock()
-        mock_post_context.__aenter__.side_effect = asyncio.TimeoutError("Request timeout")
+        mock_post_context.__aenter__.side_effect = asyncio.TimeoutError(
+            "Request timeout"
+        )
 
         mock_session.post.return_value = mock_post_context
         mock_session.close = AsyncMock()
 
-        with patch.object(client, '_create_session', return_value=mock_session):
-            with patch('asyncio.sleep', AsyncMock()) as mock_sleep:
+        with patch.object(client, "_create_session", return_value=mock_session):
+            with patch("asyncio.sleep", AsyncMock()) as mock_sleep:
                 async with client:
                     with pytest.raises(DeribitConnectionError) as exc_info:
                         await client.get_index_price("btc_usd")
 
-                    assert "время ожидания" in str(exc_info.value).lower() or "timeout" in str(exc_info.value).lower()
+                    assert (
+                        "время ожидания" in str(exc_info.value).lower()
+                        or "timeout" in str(exc_info.value).lower()
+                    )
                     assert mock_session.post.call_count == 3
                     assert mock_sleep.call_count == 2
 
@@ -127,8 +136,8 @@ class TestDeribitClientExtended:
 
             client = DeribitClient(max_retries=1)
 
-            with patch.object(client, '_create_session', return_value=mock_session):
-                with patch('asyncio.sleep', AsyncMock()):
+            with patch.object(client, "_create_session", return_value=mock_session):
+                with patch("asyncio.sleep", AsyncMock()):
                     async with client:
                         with pytest.raises(DeribitConnectionError):
                             await client.get_index_price("btc_usd")
@@ -149,12 +158,15 @@ class TestDeribitClientExtended:
 
         client = DeribitClient(max_retries=0)
 
-        with patch.object(client, '_create_session', return_value=mock_session):
+        with patch.object(client, "_create_session", return_value=mock_session):
             async with client:
                 with pytest.raises(Exception) as exc_info:
                     await client.get_index_price("btc_usd")
 
-                assert "json" in str(exc_info.value).lower() or "invalid" in str(exc_info.value).lower()
+                assert (
+                    "json" in str(exc_info.value).lower()
+                    or "invalid" in str(exc_info.value).lower()
+                )
 
     @pytest.mark.asyncio
     async def test_get_index_price_missing_fields(self):
@@ -180,7 +192,7 @@ class TestDeribitClientExtended:
 
             client = DeribitClient(max_retries=0)
 
-            with patch.object(client, '_create_session', return_value=mock_session):
+            with patch.object(client, "_create_session", return_value=mock_session):
                 async with client:
                     result = await client.get_index_price("btc_usd")
                     assert "index_price" not in result
@@ -193,17 +205,21 @@ class TestDeribitClientExtended:
             {
                 "name": "success",
                 "response": {"jsonrpc": "2.0", "id": 1, "result": {"version": "1.0.0"}},
-                "expected": True, "error": None
+                "expected": True,
+                "error": None,
             },
             {
                 "name": "api_error",
                 "response": {"jsonrpc": "2.0", "id": 1, "error": {"message": "Maint"}},
-                "expected": False, "error": None
+                "expected": False,
+                "error": None,
             },
             {
                 "name": "timeout",
-                "response": None, "expected": False, "error": asyncio.TimeoutError()
-            }
+                "response": None,
+                "expected": False,
+                "error": asyncio.TimeoutError(),
+            },
         ]
 
         for case in test_cases:
@@ -224,7 +240,7 @@ class TestDeribitClientExtended:
 
             client = DeribitClient(max_retries=0)
 
-            with patch.object(client, '_create_session', return_value=mock_session):
+            with patch.object(client, "_create_session", return_value=mock_session):
                 client.session = mock_session
 
                 result = await client.health_check()
@@ -240,11 +256,16 @@ class TestDeribitClientExtended:
             call_count["count"] += 1
             mock_context = AsyncMock()
             if call_count["count"] < 4:
-                mock_context.__aenter__.side_effect = aiohttp.ClientError(f"Fail {call_count['count']}")
+                mock_context.__aenter__.side_effect = aiohttp.ClientError(
+                    f"Fail {call_count['count']}"
+                )
             else:
                 resp = AsyncMock()
                 resp.status = 200
-                resp.json.return_value = {"jsonrpc": "2.0", "result": {"index_price": 50000.5}}
+                resp.json.return_value = {
+                    "jsonrpc": "2.0",
+                    "result": {"index_price": 50000.5},
+                }
                 mock_context.__aenter__.return_value = resp
             return mock_context
 
@@ -254,8 +275,8 @@ class TestDeribitClientExtended:
 
         client = DeribitClient(max_retries=5)
 
-        with patch.object(client, '_create_session', return_value=mock_session):
-            with patch('asyncio.sleep', AsyncMock()) as mock_sleep:
+        with patch.object(client, "_create_session", return_value=mock_session):
+            with patch("asyncio.sleep", AsyncMock()) as mock_sleep:
                 async with client:
                     await client.get_index_price("btc_usd")
 
@@ -268,7 +289,7 @@ class TestDeribitClientExtended:
     def test_client_configuration(self):
         """Тест конфигурации клиента"""
 
-        with patch('app.clients.deribit.settings') as mock_settings:
+        with patch("app.clients.deribit.settings") as mock_settings:
             mock_settings.DERIBIT_BASE_URL = "https://custom.deribit.com/api/v2"
             mock_settings.DERIBIT_API_TIMEOUT = 60
 

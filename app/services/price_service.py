@@ -1,6 +1,7 @@
-from typing import List, Optional, Dict, Any
+from typing import Any, Dict, List, Optional
+
+from sqlalchemy import desc
 from sqlalchemy.orm import Session
-from sqlalchemy import desc, and_
 
 from app.db.models import Price
 from app.schemas.price import PriceCreate, PriceUpdate
@@ -17,7 +18,7 @@ class PriceService:
             ticker=price_data.ticker,
             price=price_data.price,
             timestamp=price_data.timestamp,
-            source_timestamp=price_data.source_timestamp
+            source_timestamp=price_data.source_timestamp,
         )
         db.add(db_price)
         db.commit()
@@ -32,10 +33,7 @@ class PriceService:
 
     @staticmethod
     def get_prices(
-        db: Session,
-        ticker: str,
-        skip: int = 0,
-        limit: int = 100
+        db: Session, ticker: str, skip: int = 0, limit: int = 100
     ) -> List[Price]:
         """Получить список цен по тикеру"""
 
@@ -64,7 +62,7 @@ class PriceService:
         db: Session,
         ticker: str,
         start_timestamp: Optional[int] = None,
-        end_timestamp: Optional[int] = None
+        end_timestamp: Optional[int] = None,
     ) -> List[Price]:
         """Получить цены по тикеру в диапазоне дат"""
 
@@ -80,9 +78,7 @@ class PriceService:
 
     @staticmethod
     def update_price(
-        db: Session,
-        price_id: int,
-        price_data: PriceUpdate
+        db: Session, price_id: int, price_data: PriceUpdate
     ) -> Optional[Price]:
         """Обновить запись о цене"""
 
@@ -118,22 +114,28 @@ class PriceService:
 
         result = (
             db.query(
-                func.count(Price.id).label('count'),
-                func.min(Price.price).label('min_price'),
-                func.max(Price.price).label('max_price'),
-                func.avg(Price.price).label('avg_price'),
-                func.min(Price.timestamp).label('first_timestamp'),
-                func.max(Price.timestamp).label('last_timestamp')
+                func.count(Price.id).label("count"),
+                func.min(Price.price).label("min_price"),
+                func.max(Price.price).label("max_price"),
+                func.avg(Price.price).label("avg_price"),
+                func.min(Price.timestamp).label("first_timestamp"),
+                func.max(Price.timestamp).label("last_timestamp"),
             )
             .filter(Price.ticker == ticker)
             .first()
         )
 
         return {
-            'count': result.count if result else 0,
-            'min_price': float(result.min_price) if result and result.min_price else None,
-            'max_price': float(result.max_price) if result and result.max_price else None,
-            'avg_price': float(result.avg_price) if result and result.avg_price else None,
-            'first_timestamp': result.first_timestamp if result else None,
-            'last_timestamp': result.last_timestamp if result else None
+            "count": result.count if result else 0,
+            "min_price": float(result.min_price)
+            if result and result.min_price
+            else None,
+            "max_price": float(result.max_price)
+            if result and result.max_price
+            else None,
+            "avg_price": float(result.avg_price)
+            if result and result.avg_price
+            else None,
+            "first_timestamp": result.first_timestamp if result else None,
+            "last_timestamp": result.last_timestamp if result else None,
         }

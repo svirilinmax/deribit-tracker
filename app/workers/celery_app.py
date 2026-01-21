@@ -12,7 +12,7 @@ def create_celery_app() -> Celery:
         "deribit_tracker",
         broker=settings.redis_url,
         backend=settings.redis_url,
-        include=["app.workers.tasks"]
+        include=["app.workers.tasks"],
     )
 
     app.conf.update(
@@ -21,7 +21,6 @@ def create_celery_app() -> Celery:
         accept_content=["json"],
         timezone="UTC",
         enable_utc=True,
-
         # Настройки Redis
         broker_connection_retry_on_startup=True,
         broker_transport_options={
@@ -29,40 +28,32 @@ def create_celery_app() -> Celery:
             "socket_keepalive": True,
             "retry_on_timeout": True,
         },
-
         # Настройки задач
         task_acks_late=True,  # Подтверждение после выполнения
         task_reject_on_worker_lost=True,
         task_track_started=True,
         worker_prefetch_multiplier=1,  # По одной задаче на воркер
         worker_max_tasks_per_child=1000,  # Перезапуск после 1000 задач
-
         # Расписание (Beat)
         beat_schedule={
             # Задача получения цен каждую минуту
             "fetch-prices-every-minute": {
                 "task": "fetch_prices_task",
                 "schedule": crontab(minute="*"),
-                "options": {
-                    "queue": "prices"
-                }
+                "options": {"queue": "prices"},
             },
             # Проверка здоровья API каждые 5 минут
             "health-check-every-5-minutes": {
                 "task": "health_check_task",
                 "schedule": crontab(minute="*/5"),
-                "options": {
-                    "queue": "monitoring"
-                }
+                "options": {"queue": "monitoring"},
             },
         },
-
         # Очереди
         task_routes={
             "app.workers.tasks.fetch_prices_task": {"queue": "prices"},
             "app.workers.tasks.health_check_task": {"queue": "monitoring"},
         },
-
         # Обработка ошибок
         task_annotations={
             "*": {

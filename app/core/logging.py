@@ -1,6 +1,7 @@
 import logging
 import sys
-from typing import Dict, Any
+from typing import Any, Dict
+
 from pythonjsonlogger import json
 
 from .config import settings
@@ -14,12 +15,11 @@ def setup_logging() -> None:
 
     if settings.LOG_FORMAT == "json":
         formatter = json.JsonFormatter(
-            '%(asctime)s %(levelname)s %(name)s %(message)s',
-            json_ensure_ascii=False
+            "%(asctime)s %(levelname)s %(name)s %(message)s", json_ensure_ascii=False
         )
     else:
         formatter = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
         )
 
     console_handler = logging.StreamHandler(sys.stdout)
@@ -61,7 +61,7 @@ class LoggerAdapter(logging.LoggerAdapter):
     def process(self, msg, kwargs):
         """Добавляем дополнительные поля в логи"""
 
-        if 'extra' not in kwargs:
-            kwargs['extra'] = {}
-        kwargs['extra'].update(self.extra)
+        if "extra" not in kwargs:
+            kwargs["extra"] = {}
+        kwargs["extra"].update(self.extra)
         return msg, kwargs

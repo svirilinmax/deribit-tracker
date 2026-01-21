@@ -1,4 +1,4 @@
-from unittest.mock import patch, Mock, MagicMock
+from unittest.mock import MagicMock, Mock, patch
 
 
 class TestWorkersAPIExtended:
@@ -6,8 +6,7 @@ class TestWorkersAPIExtended:
 
     def test_trigger_fetch_prices_with_error(self, workers_test_client):
         """Тест запуска задачи с ошибкой"""
-        with patch('app.api.v1.endpoints.workers.celery_app') as mock_celery:
-
+        with patch("app.api.v1.endpoints.workers.celery_app") as mock_celery:
             mock_celery.tasks = {}
             mock_celery.tasks["fetch_prices_task"] = Mock(
                 apply_async=Mock(side_effect=Exception("Task not registered"))
@@ -21,7 +20,7 @@ class TestWorkersAPIExtended:
     def test_get_task_status_with_failed_task(self, workers_test_client):
         """Тест получения статуса неудачной задачи"""
 
-        with patch('app.api.v1.endpoints.workers.celery_app') as mock_celery:
+        with patch("app.api.v1.endpoints.workers.celery_app") as mock_celery:
             mock_task = Mock()
             mock_task.status = "FAILURE"
             mock_task.ready = Mock(return_value=True)
@@ -40,7 +39,7 @@ class TestWorkersAPIExtended:
     def test_check_celery_health_timeout(self, workers_test_client):
         """Тест проверки здоровья с таймаутом"""
 
-        with patch('app.api.v1.endpoints.workers.celery_app') as mock_celery:
+        with patch("app.api.v1.endpoints.workers.celery_app") as mock_celery:
             mock_task = Mock()
             mock_task.id = "test-task-id-123"
             mock_task.status = "PENDING"
@@ -58,8 +57,9 @@ class TestWorkersAPIExtended:
     def test_get_queue_info_with_redis_error(self, workers_test_client):
         """Тест получения информации об очередях с ошибкой Redis"""
 
-        with patch('redis.Redis') as mock_redis_class, \
-            patch('app.api.v1.endpoints.workers.celery_app') as mock_celery:
+        with patch("redis.Redis") as mock_redis_class, patch(
+            "app.api.v1.endpoints.workers.celery_app"
+        ) as mock_celery:
             mock_redis_instance = MagicMock()
             mock_redis_instance.ping = Mock(side_effect=Exception("Redis error"))
             mock_redis_class.from_url.return_value = mock_redis_instance
@@ -81,8 +81,9 @@ class TestWorkersAPIExtended:
     def test_get_queue_info_no_inspector(self, workers_test_client):
         """Тест получения информации об очередях без инспектора"""
 
-        with patch('redis.Redis') as mock_redis_class, \
-            patch('app.api.v1.endpoints.workers.celery_app') as mock_celery:
+        with patch("redis.Redis") as mock_redis_class, patch(
+            "app.api.v1.endpoints.workers.celery_app"
+        ) as mock_celery:
             mock_redis_instance = MagicMock()
             mock_redis_instance.ping.return_value = True
             mock_redis_class.from_url.return_value = mock_redis_instance
@@ -100,7 +101,7 @@ class TestWorkersAPIExtended:
     def test_trigger_multiple_tasks(self, workers_test_client):
         """Тест запуска нескольких задач"""
 
-        with patch('app.api.v1.endpoints.workers.celery_app') as mock_celery:
+        with patch("app.api.v1.endpoints.workers.celery_app") as mock_celery:
             task_ids = []
 
             def mock_apply_async():
@@ -129,7 +130,7 @@ class TestWorkersAPIExtended:
     def test_task_status_workflow(self, workers_test_client):
         """Тест полного workflow задачи"""
 
-        with patch('app.api.v1.endpoints.workers.celery_app') as mock_celery:
+        with patch("app.api.v1.endpoints.workers.celery_app") as mock_celery:
             # 1. Запускаем задачу
             task_mock = Mock()
             task_mock.id = "workflow-task-id"
